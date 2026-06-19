@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Study Assistant</title>
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Segoe UI,sans-serif;
+}
+
+body{
+    background:#f4f6f9;
+}
+
+header{
+    background:#4f46e5;
+    color:#fff;
+    padding:20px;
+    text-align:center;
+}
+
+.container{
+    max-width:1000px;
+    margin:20px auto;
+    padding:20px;
+}
+
+.card{
+    background:#fff;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 2px 10px rgba(0,0,0,.1);
+    margin-bottom:20px;
+}
+
+h2{
+    margin-bottom:15px;
+}
+
+textarea,
+input{
+    width:100%;
+    padding:12px;
+    margin:10px 0 15px;
+    border:1px solid #ccc;
+    border-radius:8px;
+}
+
+button{
+    background:#4f46e5;
+    color:#fff;
+    border:none;
+    padding:12px 20px;
+    border-radius:8px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#4338ca;
+}
+
+.result{
+    margin-top:15px;
+    background:#eef2ff;
+    padding:15px;
+    border-radius:8px;
+    white-space:pre-wrap;
+}
+
+/* Flashcards */
+.flashcard{
+    background:#eef2ff;
+    padding:15px;
+    margin-top:10px;
+    border-radius:10px;
+    border-left:5px solid #4f46e5;
+}
+
+.flashcard h4{
+    margin-bottom:8px;
+}
+
+/* Study Plan */
+.day{
+    background:#eef2ff;
+    padding:10px;
+    border-radius:8px;
+    margin-top:10px;
+}
+
+@media(max-width:768px){
+    .container{
+        padding:10px;
+    }
+}
+</style>
+</head>
+<body>
+<header>
+<h1>AI Study Assistant</h1>
+<p>Connected to FastAPI Backend</p>
+</header>
+
+<div class="container">
+
+<div class="card">
+<h2>Generate Summary</h2>
+<textarea id="summaryNotes" placeholder="Paste notes"></textarea>
+<button onclick="generateSummary()">Generate Summary</button>
+<div id="summaryResult" class="result"></div>
+</div>
+
+<div class="card">
+<h2>Ask Questions</h2>
+<textarea id="askNotes" placeholder="Paste notes"></textarea>
+<input id="question" placeholder="Enter question">
+<button onclick="askQuestion()">Ask</button>
+<div id="askResult" class="result"></div>
+</div>
+
+<div class="card">
+<h2>Quiz Generator</h2>
+<textarea id="quizNotes" placeholder="Paste notes"></textarea>
+<button onclick="generateQuiz()">Generate Quiz</button>
+<div id="quizResult" class="result"></div>
+</div>
+
+<div class="card">
+<h2>Flashcards</h2>
+<textarea id="flashNotes" placeholder="Paste notes"></textarea>
+<button onclick="generateFlashcards()">Generate Flashcards</button>
+<div id="flashResult"></div>
+</div>
+
+<div class="card">
+<h2>Study Plan</h2>
+<input id="subject" placeholder="Subject">
+<input id="days" type="number" placeholder="Days">
+<button onclick="generatePlan()">Generate Plan</button>
+<div id="planResult"></div>
+</div>
+<div class="card">
+
+    <h2>PDF Upload</h2>
+
+    <input
+        type="file"
+        id="pdfFile"
+        accept=".pdf">
+
+    <button onclick="uploadPDF()">
+        Upload PDF
+    </button>
+
+    <div
+        id="pdfResult"
+        class="result">
+    </div>
+
+</div>
+><script>
+
+const BASE_URL = "http://localhost:8000";
+
+// ASK FUNCTION
+async function askQuestion() {
+
+    const notes =
+        document.getElementById("askNotes").value;
+
+    const question =
+        document.getElementById("question").value;
+
+    try {
+
+        const response = await fetch(
+            BASE_URL + "/ask",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    notes: notes,
+                    question: question
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        document.getElementById("askResult").innerText =
+            data.answer;
+
+    }
+    catch(error){
+        alert("ERROR: " + error.message);
+    }
+}
+
+
+// QUIZ FUNCTION
+async function generateQuiz() {
+
+    const notes =
+        document.getElementById("quizNotes").value;
+
+    try {
+
+        const response = await fetch(
+            BASE_URL + "/quiz",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    notes: notes
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        document.getElementById("quizResult").innerHTML =
+            data.questions.join("<br><br>");
+
+    }
+    catch(error){
+        alert("Quiz Error: " + error.message);
+    }
+}
+async function generateFlashcards() {
+
+    const notes =
+        document.getElementById("flashNotes").value;
+
+    try {
+
+        const response = await fetch(
+            BASE_URL + "/flashcards",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    notes: notes
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        let html = "";
+
+        data.flashcards.forEach(card => {
+
+            html += `
+                <div class="flashcard">
+                    <h4>${card.front}</h4>
+                    <p>${card.back}</p>
+                </div>
+            `;
+        });
+
+        document.getElementById("flashResult").innerHTML =
+            html;
+
+    }
+    catch(error){
+        alert("Flashcard Error: " + error.message);
+    }
+}
+async function generatePlan() {
+
+    const subject =
+        document.getElementById("subject").value;
+
+    const days =
+        document.getElementById("days").value;
+
+    try {
+
+        const response = await fetch(
+            BASE_URL + "/study-plan",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    subject: subject,
+                    days: Number(days)
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        let html = "";
+
+        data.plan.forEach(item => {
+
+            html += `
+                <div class="day">
+                    ${item.task}
+                </div>
+            `;
+        });
+
+        document.getElementById("planResult").innerHTML =
+            html;
+
+    }
+    catch(error){
+
+        alert(
+            "Study Plan Error: "
+            + error.message
+        );
+    }
+}
+async function generateSummary() {
+
+    const notes =
+        document.getElementById(
+            "summaryNotes"
+        ).value;
+
+    try {
+
+        const response = await fetch(
+            BASE_URL + "/summary",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+                body: JSON.stringify({
+                    notes: notes
+                })
+            }
+        );
+
+        const data =
+            await response.json();
+
+        document.getElementById(
+            "summaryResult"
+        ).innerText =
+            data.summary;
+
+    }
+    catch(error){
+
+        alert(
+            "Summary Error: "
+            + error.message
+        );
+    }
+}
+async function uploadPDF() {
+
+    const file =
+        document.getElementById(
+            "pdfFile"
+        ).files[0];
+
+    if (!file) {
+
+        alert("Please select a PDF");
+
+        return;
+    }
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        "file",
+        file
+    );
+
+    try {
+
+        const response =
+            await fetch(
+                BASE_URL + "/upload-pdf",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+        const data =
+            await response.json();
+
+        document.getElementById(
+            "pdfResult"
+        ).innerHTML =
+
+            "<h3>File:</h3>" +
+            data.filename +
+
+            "<br><br>" +
+
+            "<h3>Summary:</h3>" +
+            data.summary;
+
+    }
+    catch(error){
+
+        alert(
+            "PDF Error: " +
+            error.message
+        );
+    }
+}
+</script></body>
+</html>
